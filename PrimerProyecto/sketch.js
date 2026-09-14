@@ -1,3 +1,7 @@
+// Estado: si el panel de "Mission Briefing" está abierto o cerrado.
+// Empieza en false (cerrado) y lo vamos a ir cambiando con la tecla K.
+let panelOpen = false;
+
 // Acá guardo la posición del reticle (la mira).
 // Uso un p5.Vector porque adentro tiene un x y un y juntos,
 // en vez de tener dos variables sueltas (reticleX, reticleY).
@@ -33,6 +37,13 @@ function draw() {
 
   drawReticle();
   drawTopHUD();
+
+  // muestro una cosa u otra según el estado de panelOpen
+  if (panelOpen) {
+    drawPanel();
+  } else {
+    drawHint();
+  }
 }
 
 // Dibuja la mira tipo "sistema de apuntado" del traje
@@ -81,6 +92,52 @@ function drawTopHUD() {
   // de "42"), así el texto no "tiembla" de ancho en cada frame.
   text("KAREN OS v2.1 — TRAINING WHEELS PROTOCOL: ACTIVE", 20, 30);
   text("TARGET LOCK: " + nf(reticlePos.x, 4, 0) + " , " + nf(reticlePos.y, 4, 0), 20, 48);
+}
+
+// Texto de ayuda abajo, solo visible cuando el panel está cerrado
+function drawHint() {
+  noStroke();
+  fill(255, 255, 255, 150); // blanco semi-transparente (el 4to valor es el alpha)
+  textSize(13);
+  text("[ presioná K para abrir Mission Briefing ]", 20, height - 24);
+}
+
+// El panel en sí. Por ahora es solo un rectángulo con texto fijo,
+// más adelante (cuando conectemos la API) acá va a ir la info
+// real de la película en vez de este texto de prueba.
+function drawPanel() {
+  let panelW = min(360, width * 0.85); // ancho del panel, con tope de 360px
+  let panelH = 200;
+  let px = width - panelW - 30; // lo pego a la derecha, con 30px de margen
+  let py = 70;
+
+  noStroke();
+  fill(10, 10, 14, 235); // fondo casi negro, casi opaco
+  rect(px, py, panelW, panelH, 6); // el 6 final son los bordes redondeados
+
+  stroke(255, 50, 50, 150);
+  noFill();
+  rect(px, py, panelW, panelH, 6); // mismo rectángulo, ahora solo el borde
+
+  noStroke();
+  fill(255, 50, 50);
+  textSize(13);
+  text("MISSION BRIEFING", px + 16, py + 26);
+
+  fill(200);
+  textSize(11);
+  text("(acá va a ir la data real de la API, todavía no la conectamos)", px + 16, py + 55, panelW - 32, 100);
+}
+
+// keyPressed() es un evento de p5: se dispara SOLO una vez,
+// justo en el momento en que apretás una tecla (no se repite
+// mientras la mantenés apretada, a diferencia de keyIsDown()).
+function keyPressed() {
+  if (key === 'k' || key === 'K') {
+    // esto es el truco típico para un "toggle": si estaba
+    // en true pasa a false, y si estaba en false pasa a true.
+    panelOpen = !panelOpen;
+  }
 }
 
 // Esta función mía dibuja el grid de fondo, como si fuera
