@@ -1,8 +1,3 @@
-// ============================================
-// HOMECOMING HUD — Training Wheels Protocol
-// Paso 2: canvas básico + grid de la ciudad
-// ============================================
-
 // Acá guardo la posición del reticle (la mira).
 // Uso un p5.Vector porque adentro tiene un x y un y juntos,
 // en vez de tener dos variables sueltas (reticleX, reticleY).
@@ -33,11 +28,11 @@ function draw() {
   // salte directo a la posición del mouse, lo voy acercando de
   // a poco (un 20% de la distancia que falta, cada frame).
   // Eso da ese efecto "suavizado" en vez de un movimiento brusco.
-  // lerp es una función de p5 que interpola linealmente entre dos valores.
   reticlePos.x = lerp(reticlePos.x, mouseX, 0.2);
   reticlePos.y = lerp(reticlePos.y, mouseY, 0.2);
 
   drawReticle();
+  drawTopHUD();
 }
 
 // Dibuja la mira tipo "sistema de apuntado" del traje
@@ -64,13 +59,28 @@ function drawReticle() {
   circle(0, 0, 80);
 
   // 4 marcas cortas alrededor del círculo (arriba, abajo, izq, der)
-  // cos es coseno, sin es seno. p5 trabaja en radianes, no en grados.
   for (let a = 0; a < 360; a += 90) {
     let ang = radians(a); // p5 trabaja en radianes, no en grados
     line(cos(ang) * 40, sin(ang) * 40, cos(ang) * 50, sin(ang) * 50);
   }
 
   pop(); // acá termina el "bloque" que empezó con push()
+}
+
+// Texto del HUD arriba a la izquierda, como si fuera
+// la interfaz de Karen mostrando datos del sistema
+function drawTopHUD() {
+  noStroke();       // sin borde en el texto
+  fill(255, 50, 50); // color del texto: rojo
+  textSize(12);
+  textFont('Courier New'); // fuente monoespaciada, look "sistema"
+
+  // text(contenido, x, y) — dibuja el texto en esa posición.
+  // Uso nf() (number format) para que las coordenadas del reticle
+  // siempre se vean con el mismo ancho de dígitos (ej: "0042" en vez
+  // de "42"), así el texto no "tiembla" de ancho en cada frame.
+  text("KAREN OS v2.1 — TRAINING WHEELS PROTOCOL: ACTIVE", 20, 30);
+  text("TARGET LOCK: " + nf(reticlePos.x, 4, 0) + " , " + nf(reticlePos.y, 4, 0), 20, 48);
 }
 
 // Esta función mía dibuja el grid de fondo, como si fuera
