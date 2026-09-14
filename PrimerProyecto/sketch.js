@@ -1,7 +1,20 @@
+// ============================================
+// HOMECOMING HUD — Training Wheels Protocol
+// Paso 2: canvas básico + grid de la ciudad
+// ============================================
+
+// Acá guardo la posición del reticle (la mira).
+// Uso un p5.Vector porque adentro tiene un x y un y juntos,
+// en vez de tener dos variables sueltas (reticleX, reticleY).
+let reticlePos;
+
 // setup() corre UNA SOLA VEZ al arrancar el sketch.
 // Acá solo creo el canvas del tamaño de toda la ventana del navegador.
 function setup() {
   createCanvas(windowWidth, windowHeight);
+
+  // arranco el reticle en el centro de la pantalla
+  reticlePos = createVector(width / 2, height / 2);
 }
 
 // draw() corre en loop, 60 veces por segundo.
@@ -15,6 +28,49 @@ function draw() {
   // llamo a mi propia función para no tener todo el código
   // amontonado dentro de draw()
   drawCityGrid();
+
+  // lerp() = "linear interpolation". En vez de que el reticle
+  // salte directo a la posición del mouse, lo voy acercando de
+  // a poco (un 20% de la distancia que falta, cada frame).
+  // Eso da ese efecto "suavizado" en vez de un movimiento brusco.
+  // lerp es una función de p5 que interpola linealmente entre dos valores.
+  reticlePos.x = lerp(reticlePos.x, mouseX, 0.2);
+  reticlePos.y = lerp(reticlePos.y, mouseY, 0.2);
+
+  drawReticle();
+}
+
+// Dibuja la mira tipo "sistema de apuntado" del traje
+function drawReticle() {
+  // push()/pop() = guardo y después restauro el "estado" de dibujo
+  // (posición, rotación, etc). Así lo que hago acá adentro
+  // no afecta a lo que dibuje después, afuera de este bloque.
+  push();
+
+  // translate() mueve el "origen" (el punto 0,0) hasta la posición
+  // del reticle. Así todo lo que dibuje después queda centrado ahí,
+  // sin tener que sumarle reticlePos.x / reticlePos.y a cada forma.
+  translate(reticlePos.x, reticlePos.y);
+
+  // roto el reticle un poquito distinto en cada frame,
+  // usando frameCount (el contador de frames que p5 lleva solo)
+  rotate(frameCount * 0.01);
+
+  noFill();
+  stroke(255, 50, 50); // rojo, como el traje
+  strokeWeight(1.5);
+
+  circle(0, 0, 60);
+  circle(0, 0, 80);
+
+  // 4 marcas cortas alrededor del círculo (arriba, abajo, izq, der)
+  // cos es coseno, sin es seno. p5 trabaja en radianes, no en grados.
+  for (let a = 0; a < 360; a += 90) {
+    let ang = radians(a); // p5 trabaja en radianes, no en grados
+    line(cos(ang) * 40, sin(ang) * 40, cos(ang) * 50, sin(ang) * 50);
+  }
+
+  pop(); // acá termina el "bloque" que empezó con push()
 }
 
 // Esta función mía dibuja el grid de fondo, como si fuera
@@ -38,6 +94,7 @@ function drawCityGrid() {
     line(0, y, width, y);
   }
 }
+
 // windowResized() es un evento de p5: se dispara automáticamente
 // cada vez que cambia el tamaño de la ventana del navegador.
 // Sin esto, si redimensionás la ventana el canvas queda con el
