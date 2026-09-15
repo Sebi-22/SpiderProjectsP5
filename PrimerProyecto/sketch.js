@@ -1,3 +1,18 @@
+// ============================================
+// CONFIGURACIÓN DE LA API (TMDB)
+const TMDB_API_KEY = "7361f0fa6f2a0f52a0109402a381e8f8";
+
+// El ID que tiene "Spider-Man: Homecoming" en la base de TMDB
+// (lo busqué una vez en su web, es fijo, no cambia)
+const HOMECOMING_ID = 315635;
+
+// Variables donde voy a ir guardando lo que me devuelva la API.
+// Arrancan "vacías" y se van completando cuando llega la respuesta.
+let movieData = null;   // acá va el JSON con título, sinopsis, fecha, etc
+let posterImg = null;   // acá va la imagen del póster ya cargada
+let loadingData = false; // true mientras estoy esperando la respuesta
+let errorMsg = "";       // si algo sale mal, guardo el mensaje acá
+
 // Estado: si el panel de "Mission Briefing" está abierto o cerrado.
 // Empieza en false (cerrado) y lo vamos a ir cambiando con la tecla K.
 let panelOpen = false;
@@ -102,12 +117,11 @@ function drawHint() {
   text("[ presioná K para abrir Mission Briefing ]", 20, height - 24);
 }
 
-// El panel en sí. Por ahora es solo un rectángulo con texto fijo,
-// más adelante (cuando conectemos la API) acá va a ir la info
-// real de la película en vez de este texto de prueba.
+// El panel en sí. Ahora muestra distintas cosas según el estado:
+// cargando, error, o los datos ya listos (con póster incluido).
 function drawPanel() {
   let panelW = min(360, width * 0.85); // ancho del panel, con tope de 360px
-  let panelH = 200;
+  let panelH = 460;
   let px = width - panelW - 30; // lo pego a la derecha, con 30px de margen
   let py = 70;
 
@@ -124,9 +138,48 @@ function drawPanel() {
   textSize(13);
   text("MISSION BRIEFING", px + 16, py + 26);
 
-  fill(200);
-  textSize(11);
-  text("(acá va a ir la data real de la API, todavía no la conectamos)", px + 16, py + 55, panelW - 32, 100);
+  // Caso 1: todavía esperando la respuesta de la API
+  if (loadingData) {
+    fill(255);
+    textSize(12);
+    text("Accediendo a los archivos...", px + 16, py + 55);
+    return; // corto acá, no sigo dibujando nada más
+  }
+
+  // Caso 2: algo salió mal (sin internet, key mal puesta, etc.)
+  if (errorMsg) {
+    fill(255, 120, 120);
+    textSize(11);
+    text(errorMsg, px + 16, py + 55, panelW - 32, 100);
+    return;
+  }
+
+  // Caso 3: todavía no se pidió nada (recién abrió el panel
+  // por primera vez, en el frame antes de que llegue la respuesta)
+  if (!movieData) return;
+
+  // Caso 4: ya tengo los datos reales, los muestro
+  if (posterImg) {
+    let imgW = panelW - 32;
+    let imgH = imgW * 1.5; // proporción típica de un póster de cine
+
+    // image(imagen, x, y, ancho, alto) — dibuja la imagen cargada
+    image(posterImg, px + 16, py + 40, imgW, imgH);
+
+    fill(255);
+    textSize(14);
+    text(movieData.title, px + 16, py + 40 + imgH + 22);
+
+    fill(200);
+    textSize(11);
+    text("Estreno: " + movieData.release_date, px + 16, py + 40 + imgH + 40);
+
+    // recorto la sinopsis si es muy larga, para que entre en el panel
+    let overview = movieData.overview.length > 140
+      ? movieData.overview.substring(0, 140) + "..."
+      : movieData.overview;
+    text(overview, px + 16, py + 40 + imgH + 60, panelW - 32, 100);
+  }
 }
 
 // keyPressed() es un evento de p5: se dispara SOLO una vez,
@@ -137,7 +190,69 @@ function keyPressed() {
     // esto es el truco típico para un "toggle": si estaba
     // en true pasa a false, y si estaba en false pasa a true.
     panelOpen = !panelOpen;
+
+    // Si acabo de abrir el panel Y todavía no pedí los datos
+    // (ni los estoy pidiendo ya), recién ahí hago el fetch.
+    // Así no golpeo la API cada vez que abro/cierro el panel,
+    // solo la primera vez.
+    if (panelOpen && !movieData && !loadingData) {
+      fetchMovieData();
+    }
   }
+}
+// LLAMADA A LA API DE TMDB
+// La marco como "async" porque adentro voy a usar "await",
+// que significa "esperá a que esto termine antes de seguir".
+// Sin async/await, JS seguiría ejecutando el resto del código
+// sin esperar la respuesta de internet, y llegaría vacía.
+async function fetchMovieData() {
+  loadingData = true;
+  errorMsg = "";
+
+  try {
+    // armo la URL pidiendo los datos de Homecoming, en español
+    let url = `https://api.themoviedb.org/3/movie/${HOMECOMING_ID}?api_key=${TMDB_API_KEY}&language=es-ES`;
+
+    // fetch() hace el pedido a internet. Con "await" espero
+    // a que responda antes de seguir con la línea de abajo.
+    let res = await fetch(url);
+
+    // si la respuesta no vino bien (ej: error 401, 404, etc.)
+    // corto acá y salto directo al catch de abajo
+    if (!res.ok) throw new Error("Error en la respuesta de la API: " + res.status);
+
+    // convierto la respuesta (que viene en formato raro) a un
+    // objeto de JS que puedo usar normal, con .title, .overview, etc.
+    let data = await res.json();
+    movieData = data;
+
+    // si la película tiene póster, armo la URL de la imagen
+    // y la cargo con loadImage (envuelta en una Promise para
+    // poder usar await acá también)
+    if (data.poster_path) {
+      let posterUrl = "https://image.tmdb.org/t/p/w500" + data.poster_path;
+      posterImg = await loadImagePromise(posterUrl);
+    }
+
+  } catch (err) {
+    // si algo falla en cualquier punto del try (sin internet,
+    // key mal puesta, etc.) cae acá y guardo el mensaje de error
+    errorMsg = "No se pudo conectar con la API: " + err.message;
+
+  } finally {
+    // esto se ejecuta SIEMPRE, haya salido bien o mal
+    loadingData = false;
+  }
+}
+
+// loadImage() de p5 normalmente funciona con callbacks
+// (le pasás una función que se ejecuta cuando termina).
+// Acá lo "envuelvo" en una Promise para poder usar await
+// arriba, y que el código quede más ordenado y legible.
+function loadImagePromise(url) {
+  return new Promise((resolve, reject) => {
+    loadImage(url, img => resolve(img), err => reject(err));
+  });
 }
 
 // Esta función mía dibuja el grid de fondo, como si fuera
