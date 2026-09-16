@@ -1,12 +1,9 @@
-/* Reseteo básico*/
 body {
   margin: 0;
   padding: 0;
   background: #050507;
-  overflow: hidden; /* evita que aparezcan scrollbars */
+  overflow: hidden;
 }
-
-/* p5.js inserta un <canvas> dentro del body. */
 canvas {
   display: block;
 }
