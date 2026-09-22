@@ -1,5 +1,6 @@
 // ============================================
 // CONFIGURACIÓN DE LA API (TMDB)
+// ============================================
 // Mi API key gratuita de themoviedb.org.
 const TMDB_API_KEY = "7361f0fa6f2a0f52a0109402a381e8f8";
 
@@ -33,13 +34,14 @@ let reticlePos;
 
 // ============================================
 // EL VILLANO (por ahora solo el movimiento)
+// ============================================
 // Lo armo como un objeto con su propia posición y
 // "semillas" de ruido para que se mueva distinto en X y en Y
 let villain = {
   pos: null,
   noiseSeedX: 0,
   noiseSeedY: 1000 // arranco en un número distinto para X e Y,
-  // si no, se moverían siempre iguales en ambos ejes
+                     // si no, se moverían siempre iguales en ambos ejes
 };
 
 function setup() {
@@ -67,6 +69,7 @@ function draw() {
 
   updateVillain();
   drawVillain();
+  drawTrackerBox();
 
   if (showIntroMsg) {
     drawIntroMessage();
@@ -275,10 +278,7 @@ function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
 }
 
-// ============================================
 // LÓGICA DEL VILLANO
-// ============================================
-
 // Mueve al villano usando noise() en vez de random().
 // La diferencia importante: random() salta de un valor a otro
 // sin relación entre sí (se ve tembloroso/errático). noise()
@@ -311,4 +311,46 @@ function drawVillain() {
   ellipse(0, -26, 22, 22); // cabeza
 
   pop();
+}
+
+// CAJA DE MIRA (TRACKER BOX)
+// Dibuja el marco angular alrededor del villano, y al lado
+// muestra sus coordenadas y la distancia real al reticle.
+function drawTrackerBox() {
+  let boxSize = 70;
+  let x = villain.pos.x;
+  let y = villain.pos.y;
+  let half = boxSize / 2;
+  let cornerLen = 14; // largo de cada "esquina" angular
+
+  stroke(255, 90, 90);
+  strokeWeight(1.5);
+  noFill();
+
+  // en vez de un rectángulo completo, dibujo solo las 4 esquinas
+  // (2 líneas cortas por esquina) — es el look típico de HUD militar,
+  // más "táctico" que un cuadrado cerrado común
+  drawCorner(x - half, y - half, cornerLen, 1, 1);   // arriba-izquierda
+  drawCorner(x + half, y - half, cornerLen, -1, 1);  // arriba-derecha
+  drawCorner(x - half, y + half, cornerLen, 1, -1);  // abajo-izquierda
+  drawCorner(x + half, y + half, cornerLen, -1, -1); // abajo-derecha
+
+  // dist() calcula la distancia real en píxeles entre dos puntos.
+  // Es básicamente el teorema de Pitágoras, pero p5 ya te lo resuelve.
+  let d = dist(reticlePos.x, reticlePos.y, villain.pos.x, villain.pos.y);
+
+  noStroke();
+  fill(255, 120, 120);
+  textSize(10);
+  textFont('Courier New');
+  text("TARGET " + nf(x, 4, 0) + " , " + nf(y, 4, 0), x + half + 10, y - 6);
+  text("RANGE: " + nf(d, 4, 0) + "px", x + half + 10, y + 8);
+}
+
+// Función auxiliar: dibuja una sola "esquina" angular (2 líneas
+// en forma de L). dirX y dirY (1 o -1) me dicen hacia dónde
+// apuntan esas líneas según en qué esquina estoy dibujando.
+function drawCorner(cx, cy, len, dirX, dirY) {
+  line(cx, cy, cx + len * dirX, cy);
+  line(cx, cy, cx, cy + len * dirY);
 }
