@@ -1,5 +1,6 @@
 // ============================================
 // CONFIGURACIÓN DE LA API (TMDB)
+// ============================================
 // Mi API key gratuita de themoviedb.org.
 const TMDB_API_KEY = "7361f0fa6f2a0f52a0109402a381e8f8";
 
@@ -43,6 +44,7 @@ let villain = {
 
 // ============================================
 // DISPARO DE TELARAÑA
+// ============================================
 // Todo el estado del disparo vive en un solo objeto.
 // active = false cuando no hay ningún disparo en curso.
 let webShot = {
@@ -52,6 +54,16 @@ let webShot = {
   tip: null,     // la posición ACTUAL de la punta del hilo (se va moviendo)
   t: 0           // "progreso" del disparo, de 0 a 1 (0 = recién salió, 1 = llegó)
 };
+
+// true cuando el último disparo le dio al villano.
+// Lo uso para congelar su movimiento y, en el próximo paso,
+// cambiar todo el HUD a "modo atrapado".
+let villainCaptured = false;
+
+// radio de tolerancia: si el disparo llega a menos de esta
+// distancia del villano (en su posición actual, no la de cuando
+// disparaste), cuenta como acierto
+const hit_Radius = 45;
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
@@ -148,6 +160,16 @@ function drawTopHUD() {
 
   text("KAREN OS v2.1 — TRAINING WHEELS PROTOCOL: UNLOCKED", 20, 30);
   text("SCAN LOCK: " + nf(reticlePos.x, 4, 0) + " , " + nf(reticlePos.y, 4, 0), 20, 48);
+
+  // texto de prueba para el paso 4 — en el paso 5 esto se
+  // va a convertir en un cambio completo de estado del HUD
+  if (villainCaptured) {
+    fill(255, 90, 90);
+    text("STATUS: TARGET AMBUSHED", 20, 66);
+  } else {
+    fill(120, 220, 255);
+    text("STATUS: PRÓFUGO — EN FUGA", 20, 66);
+  }
 }
 
 function drawHint() {
@@ -313,6 +335,9 @@ function windowResized() {
 // da valores que cambian GRADUALMENTE, por eso el movimiento
 // se ve como una fuga calculada, no un tirón nervioso.
 function updateVillain() {
+  // si ya está atrapado, no se mueve más — se "congela" en el lugar
+  if (villainCaptured) return;
+
   // noise() siempre devuelve un valor entre 0 y 1.
   // Yo lo "reencuadro" con map() al rango de todo el canvas.
   let nx = noise(villain.noiseSeedX);
@@ -401,7 +426,22 @@ function updateWebShot() {
     webShot.t = 1;
     webShot.tip = webShot.target.copy();
     webShot.active = false; // termina el disparo
-    // (la detección de colisión la agregamos en el próximo paso)
+
+    // ACÁ está la detección de colisión:
+    // comparo dónde llegó el disparo (webShot.target, que es
+    // donde estaba el villano CUANDO disparaste) contra dónde
+    // está el villano AHORA (villain.pos, que se siguió moviendo
+    // mientras el hilo viajaba por el aire)
+    let hitDist = dist(webShot.target.x, webShot.target.y, villain.pos.x, villain.pos.y);
+
+    if (hitDist < hit_Radius) {
+      // el villano seguía lo bastante cerca del punto apuntado: ¡acierto!
+      villainCaptured = true;
+    }
+    // si hitDist es mayor a hit_Radius, el villano ya se había
+    // movido demasiado lejos del punto apuntado: erraste el tiro,
+    // y no pasa nada más (villainCaptured sigue en false)
+
   } else {
     // lerp() entre el punto de inicio y el objetivo, según
     // el progreso "t". Con t=0 la punta está en start,
