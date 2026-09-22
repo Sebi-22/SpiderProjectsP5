@@ -1,6 +1,5 @@
 // ============================================
 // CONFIGURACIÓN DE LA API (TMDB)
-// ============================================
 // Mi API key gratuita de themoviedb.org.
 const TMDB_API_KEY = "7361f0fa6f2a0f52a0109402a381e8f8";
 
@@ -32,9 +31,7 @@ let webCombo = 1;
 
 let reticlePos;
 
-// ============================================
 // EL VILLANO (por ahora solo el movimiento)
-// ============================================
 // Lo armo como un objeto con su propia posición y
 // "semillas" de ruido para que se mueva distinto en X y en Y
 let villain = {
@@ -42,6 +39,18 @@ let villain = {
   noiseSeedX: 0,
   noiseSeedY: 1000 // arranco en un número distinto para X e Y,
                      // si no, se moverían siempre iguales en ambos ejes
+};
+
+// ============================================
+// DISPARO DE TELARAÑA
+// Todo el estado del disparo vive en un solo objeto.
+// active = false cuando no hay ningún disparo en curso.
+let webShot = {
+  active: false,
+  start: null,   // desde dónde sale (el reticle, en el momento del disparo)
+  target: null,  // hacia dónde apunta (el villano, en el momento del disparo)
+  tip: null,     // la posición ACTUAL de la punta del hilo (se va moviendo)
+  t: 0           // "progreso" del disparo, de 0 a 1 (0 = recién salió, 1 = llegó)
 };
 
 function setup() {
@@ -70,6 +79,9 @@ function draw() {
   updateVillain();
   drawVillain();
   drawTrackerBox();
+
+  updateWebShot();
+  drawWebShot();
 
   if (showIntroMsg) {
     drawIntroMessage();
@@ -214,6 +226,19 @@ function keyPressed() {
       fetchPersonData();
     }
   }
+
+  // Barra espaciadora: dispara la telaraña, pero solo si
+  // no hay ya un disparo en curso (evito que se acumulen varios)
+  if (key === ' ' && !webShot.active) {
+    webShot.active = true;
+    webShot.t = 0;
+    webShot.start = createVector(reticlePos.x, reticlePos.y);
+    // apunto a donde está el villano EN ESTE INSTANTE;
+    // como el villano se sigue moviendo mientras el hilo viaja,
+    // esto simula que hay que "anticipar" el disparo
+    webShot.target = createVector(villain.pos.x, villain.pos.y);
+    webShot.tip = webShot.start.copy();
+  }
 }
 
 // ============================================
@@ -278,7 +303,10 @@ function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
 }
 
+// ============================================
 // LÓGICA DEL VILLANO
+// ============================================
+
 // Mueve al villano usando noise() en vez de random().
 // La diferencia importante: random() salta de un valor a otro
 // sin relación entre sí (se ve tembloroso/errático). noise()
@@ -313,7 +341,9 @@ function drawVillain() {
   pop();
 }
 
+// ============================================
 // CAJA DE MIRA (TRACKER BOX)
+// ============================================
 // Dibuja el marco angular alrededor del villano, y al lado
 // muestra sus coordenadas y la distancia real al reticle.
 function drawTrackerBox() {
@@ -353,4 +383,45 @@ function drawTrackerBox() {
 function drawCorner(cx, cy, len, dirX, dirY) {
   line(cx, cy, cx + len * dirX, cy);
   line(cx, cy, cx, cy + len * dirY);
+}
+
+// ============================================
+// LÓGICA DEL DISPARO DE TELARAÑA
+// ============================================
+
+function updateWebShot() {
+  if (!webShot.active) return; // si no hay disparo activo, no hago nada
+
+  // t va de 0 a 1. Le sumo un poquito cada frame — ese "0.04"
+  // es la VELOCIDAD del disparo. Más grande = más rápido.
+  webShot.t += 0.04;
+
+  if (webShot.t >= 1) {
+    // el disparo llegó a destino (o se pasó del 100%)
+    webShot.t = 1;
+    webShot.tip = webShot.target.copy();
+    webShot.active = false; // termina el disparo
+    // (la detección de colisión la agregamos en el próximo paso)
+  } else {
+    // lerp() entre el punto de inicio y el objetivo, según
+    // el progreso "t". Con t=0 la punta está en start,
+    // con t=1 está en target, y en el medio va interpolando.
+    webShot.tip.x = lerp(webShot.start.x, webShot.target.x, webShot.t);
+    webShot.tip.y = lerp(webShot.start.y, webShot.target.y, webShot.t);
+  }
+}
+
+function drawWebShot() {
+  // si nunca se disparó nada, tip va a ser null, no dibujo nada
+  if (!webShot.tip) return;
+  // si ya terminó el disparo (t llegó a 1) tampoco lo sigo dibujando
+  if (!webShot.active) return;
+
+  stroke(255); // hilo blanco, como la telaraña real
+  strokeWeight(2);
+  line(webShot.start.x, webShot.start.y, webShot.tip.x, webShot.tip.y);
+
+  noStroke();
+  fill(255);
+  circle(webShot.tip.x, webShot.tip.y, 6); // la "punta" del disparo
 }
