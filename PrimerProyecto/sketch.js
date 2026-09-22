@@ -1,9 +1,12 @@
+// ============================================
 // CONFIGURACIÓN DE LA API (TMDB)
 // Mi API key gratuita de themoviedb.org.
 const TMDB_API_KEY = "7361f0fa6f2a0f52a0109402a381e8f8";
 
-// Le pido a Karen que "identifique a una persona" — esto sí es una función real
-// del traje (Karen puede investigar personas que Peter se cruzó).Uso el endpoint de búsqueda de personas de TMDB.
+// Ahora en vez de pedir datos de la PELÍCULA, le pido a Karen
+// que "identifique a una persona" — esto sí es una función real
+// del traje (Karen puede investigar personas que Peter se cruzó).
+// Uso el endpoint de búsqueda de personas de TMDB.
 const PERSON_QUERY = "Michael Keaton"; // el actor que hace de Vulture, el villano
 
 // Variables donde voy guardando lo que me devuelve la API
@@ -12,7 +15,8 @@ let personImg = null;
 let loadingData = false;
 let errorMsg = "";
 
-// Estado del panel "Personnel File" (cuando está abierto, se ve la info de la persona; cuando está cerrado, solo se ve un mensaje de ayuda)."Personnel File" — identificación de una persona)
+// Estado del panel (antes se llamaba "Mission Briefing",
+// ahora es "Personnel File" — identificación de una persona)
 let panelOpen = false;
 
 // Mensaje real de Karen al activarse por primera vez.
@@ -27,45 +31,58 @@ let webCombo = 1;
 
 let reticlePos;
 
+// ============================================
+// EL VILLANO (por ahora solo el movimiento)
+// Lo armo como un objeto con su propia posición y
+// "semillas" de ruido para que se mueva distinto en X y en Y
+let villain = {
+  pos: null,
+  noiseSeedX: 0,
+  noiseSeedY: 1000 // arranco en un número distinto para X e Y,
+  // si no, se moverían siempre iguales en ambos ejes
+};
+
 function setup() {
   createCanvas(windowWidth, windowHeight);
-  //createVector es una función de p5.js que crea un vector 2D (x, y) para representar la posición del reticle.
   reticlePos = createVector(width / 2, height / 2);
+
+  // arranco al villano en una posición random dentro del canvas,
+  // dejando un margen de 100px para que no aparezca pegado al borde
+  villain.pos = createVector(random(100, width - 100), random(100, height - 100));
 }
 
 function draw() {
   background(6, 8, 12);
   drawCityGrid();
-   //lerp es una función de p5.js que interpola linealmente entre dos valores. Aquí se usa para suavizar el movimiento del reticle hacia la posición del mouse.
+
   reticlePos.x = lerp(reticlePos.x, mouseX, 0.2);
   reticlePos.y = lerp(reticlePos.y, mouseY, 0.2);
 
   // el número de combinación va cambiando solo, en loop,
   // entre 1 y 576 (el máximo real de combinaciones del traje)
-  // floor es una función de p5.js que redondea hacia abajo, y map es otra función de p5.js que mapea un valor de un rango a otro rango.
-  //sin es una función de p5.js que devuelve el seno de un ángulo (en radianes). frameCount es una variable de p5.js que cuenta los frames desde que empezó el sketch.
   webCombo = floor(map(sin(frameCount * 0.03), -1, 1, 1, 576));
-  // drawReticle dibuja el reticle en la pantalla
+
   drawReticle();
-  // drawTopHUD dibuja la información de estado en la parte superior de la pantalla.
   drawTopHUD();
 
-  //drawIntroMessage es la función que dibuja el mensaje de Karen al inicio. Se muestra solo si showIntroMsg es true, y se va decrementando introMsgTimer hasta que llega a 0, momento en el cual showIntroMsg se pone en false y el mensaje desaparece.
+  updateVillain();
+  drawVillain();
+
   if (showIntroMsg) {
     drawIntroMessage();
     introMsgTimer--;
     if (introMsgTimer <= 0) showIntroMsg = false;
   }
-  // drawPanel dibuja el panel de "Personnel File" si panelOpen es true, y drawHint dibuja un mensaje de ayuda si panelOpen es false.
+
   if (panelOpen) {
     drawPanel();
   } else {
-    // drawHint dibuja un mensaje de ayuda si panelOpen es false.
     drawHint();
   }
 }
 
 // Mensaje real de Karen la primera vez que se activa
+// (traducido de la línea original de la película)
 function drawIntroMessage() {
   noStroke();
   fill(120, 220, 255, 220); // celeste, estilo Stark
@@ -78,22 +95,23 @@ function drawIntroMessage() {
   text("— KAREN", width / 2, height / 2 + 14);
   textAlign(LEFT); // vuelvo a la alineación normal para el resto del sketch
 }
-// Dibuja el reticle (la mira) en la pantalla, con un efecto de rotación y líneas radiales. También muestra el número de combinación de telaraña al lado del reticle.
+
+// Reticle rediseñado: ahora simula el selector de
+// combinaciones de telaraña (576 combos posibles, dato real)
 function drawReticle() {
   push();
   translate(reticlePos.x, reticlePos.y);
   rotate(frameCount * 0.008);
 
   noFill();
-  stroke(120, 220, 255);
+  stroke(120, 220, 255); // celeste en vez de rojo
   strokeWeight(1.2);
 
   circle(0, 0, 60);
   circle(0, 0, 82);
 
-  // líneas radiales que salen del reticle, cada 45 grados
   for (let a = 0; a < 360; a += 45) {
-    let ang = radians(a); //radiands es una función de p5.js que convierte grados a radianes.
+    let ang = radians(a);
     line(cos(ang) * 42, sin(ang) * 42, cos(ang) * 50, sin(ang) * 50);
   }
   pop();
@@ -104,13 +122,12 @@ function drawReticle() {
   fill(120, 220, 255);
   textSize(10);
   textFont('Courier New');
-  // nf es una función de p5.js que formatea un número con un número fijo de dígitos y decimales. Aquí se usa para mostrar el número de combinación con 3 dígitos y 0 decimales.
   text("WEB COMBO " + nf(webCombo, 3, 0) + "/576", reticlePos.x + 46, reticlePos.y);
 }
 
 function drawTopHUD() {
   noStroke();
-  fill(120, 220, 255); 
+  fill(120, 220, 255); // celeste, no rojo
   textSize(12);
   textFont('Courier New');
 
@@ -125,9 +142,12 @@ function drawHint() {
   text("[ presioná K para Personnel File ]", 20, height - 24);
 }
 
-// Panel "Personnel File" — Karen identificando a una persona, mostrando su foto, ocupación y biografía. Se abre y cierra con la tecla K.
+// Panel "Personnel File" — Karen identificando a una persona,
+// usando la API. Esto sí tiene sentido dentro del universo:
+// es la función real de investigar personas de la que hablan
+// las fuentes de la película.
 function drawPanel() {
-  let panelW = min(360, width * 0.85);// min es una función de p5.js que devuelve el menor de dos valores. Aquí se usa para que el panel no sea más ancho que 360px, pero tampoco más ancho que el 85% del ancho de la ventana.
+  let panelW = min(360, width * 0.85);
   let panelH = 460;
   let px = width - panelW - 30;
   let py = 70;
@@ -176,7 +196,7 @@ function drawPanel() {
     text("Ocupación: " + personData.known_for_department, px + 16, py + 40 + imgH + 40);
 
     let bio = personData.biography && personData.biography.length > 140
-      ? personData.biography.substring(0, 140) + "..." //substring es una función de JavaScript que devuelve una parte de una cadena. Aquí se usa para limitar la biografía a 140 caracteres y agregar "..." al final si es más larga.
+      ? personData.biography.substring(0, 140) + "..."
       : (personData.biography || "Sin datos biográficos disponibles.");
     fill(200);
     text(bio, px + 16, py + 40 + imgH + 60, panelW - 32, 100);
@@ -193,7 +213,9 @@ function keyPressed() {
   }
 }
 
+// ============================================
 // LLAMADA A LA API DE TMDB (búsqueda de persona)
+// ============================================
 async function fetchPersonData() {
   loadingData = true;
   errorMsg = "";
@@ -238,7 +260,7 @@ function loadImagePromise(url) {
 }
 
 function drawCityGrid() {
-  stroke(20, 26, 32); 
+  stroke(20, 26, 32); // grid también ajustado a tono azulado, no gris neutro
   strokeWeight(1);
 
   for (let x = 0; x < width; x += 45) {
@@ -251,4 +273,42 @@ function drawCityGrid() {
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
+}
+
+// ============================================
+// LÓGICA DEL VILLANO
+// ============================================
+
+// Mueve al villano usando noise() en vez de random().
+// La diferencia importante: random() salta de un valor a otro
+// sin relación entre sí (se ve tembloroso/errático). noise()
+// da valores que cambian GRADUALMENTE, por eso el movimiento
+// se ve como una fuga calculada, no un tirón nervioso.
+function updateVillain() {
+  // noise() siempre devuelve un valor entre 0 y 1.
+  // Yo lo "reencuadro" con map() al rango de todo el canvas.
+  let nx = noise(villain.noiseSeedX);
+  let ny = noise(villain.noiseSeedY);
+
+  villain.pos.x = map(nx, 0, 1, 80, width - 80);
+  villain.pos.y = map(ny, 0, 1, 80, height - 80);
+
+  // avanzo la semilla de a poquito cada frame — cuanto más
+  // grande el incremento, más rápido/errático se mueve
+  villain.noiseSeedX += 0.003;
+  villain.noiseSeedY += 0.003;
+}
+
+// Dibuja al villano como una silueta simple (no uso ninguna
+// imagen real, para no tener problemas de derechos de imagen)
+function drawVillain() {
+  push();
+  translate(villain.pos.x, villain.pos.y);
+
+  noStroke();
+  fill(255, 80, 80, 200); // rojo de alerta, para que se distinga del HUD celeste
+  ellipse(0, 0, 34, 46); // torso
+  ellipse(0, -26, 22, 22); // cabeza
+
+  pop();
 }
