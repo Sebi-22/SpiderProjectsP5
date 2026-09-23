@@ -1,7 +1,7 @@
 // CONFIGURACIÓN DE LA API (TMDB)
 // Mi API key gratuita de themoviedb.org.
 const tmdb_api_key = "7361f0fa6f2a0f52a0109402a381e8f8";
- 
+
 // Ahora en vez de pedir datos de la PELÍCULA, le pido a Karen
 // que "identifique a una persona" — esto sí es una función real
 // del traje (Karen puede investigar personas que Peter se cruzó).
@@ -19,11 +19,22 @@ let errorMsg = "";
 // ahora es "Personnel File" — identificación de una persona)
 let panelOpen = false;
 
-// Mensaje real de Karen al activarse por primera vez.
-// Esto es literal de la película (traducido), lo muestro
-// unos segundos al arrancar el sketch.
-let showIntroMsg = true;
-let introMsgTimer = 240; // frames que dura en pantalla (240 = 4 segundos a 60fps)
+// ESTADO DEL JUEGO 
+// El sketch ahora tiene 3 "pantallas":
+//   "start"    -> pantalla de inicio, espera que aprietes ESPACIO
+//   "playing"  -> el mini juego en sí
+//   "complete" -> pantalla final con el mensaje de Karen
+let gameState = "start";
+
+// Un casillero por villano: true si ya lo atrapaste.
+// El protocolo se completa cuando TODOS están en true.
+let capturedList = [false, false, false, false];
+
+// Cuando atrapás al último villano no salto directo a la pantalla
+// final: espero unos frames para que alcances a ver la red sobre él.
+// 0 = no hay cuenta regresiva en curso.
+let completeTimer = 0;
+const complete_delay = 90; // 90 frames = 1.5 segundos a 60fps
 
 // Contador de "combinación de telaraña" — dato real:
 // el traje tiene 576 combinaciones posibles de webbing.
@@ -32,7 +43,7 @@ let webCombo = 1;
 let reticlePos;
 
 // ============================================
-// EL VILLANO 
+// EL VILLANO
 // ============================================
 // Lo armo como un objeto con su propia posición y
 // "semillas" de ruido para que se mueva distinto en X y en Y
@@ -40,7 +51,7 @@ let villain = {
   pos: null,
   noiseSeedX: 0,
   noiseSeedY: 1000 // arranco en un número distinto para X e Y,
-                     // si no, se moverían siempre iguales en ambos ejes
+                   // si no, se moverían siempre iguales en ambos ejes
 };
 
 // ============================================
@@ -57,8 +68,7 @@ let webShot = {
 };
 
 // true cuando el último disparo le dio al villano.
-// Lo uso para congelar su movimiento y, en el próximo paso,
-// cambiar todo el HUD a "modo atrapado".
+// Lo uso para congelar su movimiento y cambiar el HUD a "modo atrapado".
 let villainCaptured = false;
 
 // radio de tolerancia: si el disparo llega a menos de esta
@@ -78,7 +88,7 @@ function setup() {
 function draw() {
   background(6, 8, 12);
   drawCityGrid();
- 
+
   //lerp es una función de p5.js que interpola suavemente entre dos valores. En este caso, hace que el reticlePos se acerque al mouseX y mouseY de manera gradual, creando un efecto de seguimiento suave.
   reticlePos.x = lerp(reticlePos.x, mouseX, 0.2);
   reticlePos.y = lerp(reticlePos.y, mouseY, 0.2);
@@ -87,6 +97,24 @@ function draw() {
   // entre 1 y 576 (el máximo real de combinaciones del traje)
   webCombo = floor(map(sin(frameCount * 0.03), -1, 1, 1, 576));
 
+  // ---- PANTALLA DE INICIO ----
+  // Solo dibujo el fondo, el reticle y el cartel. El villano
+  // no aparece ni se mueve hasta que empieza el juego.
+  if (gameState === "start") {
+    drawReticle();
+    drawStartScreen();
+    return; // corto acá: nada de lo de abajo se ejecuta
+  }
+
+  // ---- PANTALLA FINAL ----
+  if (gameState === "complete") {
+    drawReticle();
+    drawTopHUD();
+    drawCompleteScreen();
+    return;
+  }
+
+  // ---- JUEGO----
   drawReticle();
   drawTopHUD();
 
@@ -102,10 +130,13 @@ function draw() {
   updateWebShot();
   drawWebShot();
 
-  if (showIntroMsg) {
-    drawIntroMessage();
-    introMsgTimer--;
-    if (introMsgTimer <= 0) showIntroMsg = false;
+  // si atrapé al último villano, corre la cuenta regresiva
+  // y cuando llega a 0 paso a la pantalla final
+  if (completeTimer > 0) {
+    completeTimer--;
+    if (completeTimer === 0) {
+      gameState = "complete";
+    }
   }
 
   if (panelOpen) {
@@ -115,19 +146,66 @@ function draw() {
   }
 }
 
-// Mensaje real de Karen la primera vez que se activa
-// (traducido de la línea original de la película)
-function drawIntroMessage() {
+// ============================================
+// PANTALLA DE INICIO (NUEVO)
+// ============================================
+function drawStartScreen() {
   noStroke();
-  fill(120, 220, 255, 220); // celeste, estilo Stark
-  textSize(15);
   textFont('Courier New');
   textAlign(CENTER);
+
+  fill(120, 220, 255);
+  textSize(24);
+  text("KAREN OS v2.1", width / 2, height / 2 - 60);
+
+  textSize(13);
+  fill(120, 220, 255, 180);
+  text("TRAINING WHEELS PROTOCOL", width / 2, height / 2 - 34);
+
+  fill(255, 255, 255, 170);
+  textSize(12);
+  text("Atrapá a los " + Villians.length + " villanos para completar el protocolo", width / 2, height / 2 + 10);
+  text("ESPACIO: disparar telaraña   |   K: Personnel File   |   N: siguiente villano", width / 2, height / 2 + 30);
+
+  // texto parpadeante: cada 30 frames alterna entre visible y oculto
+  if (floor(frameCount / 30) % 2 === 0) {
+    fill(120, 220, 255);
+    textSize(15);
+    text("[ presioná ESPACIO para comenzar ]", width / 2, height / 2 + 75);
+  }
+
+  textAlign(LEFT); // vuelvo a la alineación normal para el resto del sketch
+}
+
+// ============================================
+// PANTALLA FINAL
+// ============================================
+// El mensaje real de Karen (traducido de la película) ahora
+// aparece ACÁ, como recompensa al completar el protocolo,
+// y no más al arrancar.
+function drawCompleteScreen() {
+  noStroke();
+  fill(6, 8, 12, 200);
+  rect(0, 0, width, height);
+
+  textFont('Courier New');
+  textAlign(CENTER);
+
+  fill(120, 220, 255, 220); // celeste, estilo Stark
+  textSize(15);
   text('"Felicitaciones por completar el Training Wheels Protocol."', width / 2, height / 2 - 10);
+
   textSize(12);
   fill(120, 220, 255, 160);
   text("— KAREN", width / 2, height / 2 + 14);
-  textAlign(LEFT); // vuelvo a la alineación normal para el resto del sketch
+
+  if (floor(frameCount / 30) % 2 === 0) {
+    fill(255, 255, 255, 170);
+    textSize(13);
+    text("[ presioná ESPACIO para jugar de nuevo ]", width / 2, height / 2 + 70);
+  }
+
+  textAlign(LEFT);
 }
 
 // Reticle rediseñado: ahora simula el selector de
@@ -168,11 +246,12 @@ function drawTopHUD() {
   textSize(12);
   textFont('Courier New');
 
-  text("KAREN OS v2.1 — TRAINING WHEELS PROTOCOL: UNLOCKED", 20, 30);
+  // el protocolo figura "IN PROGRESS" mientras jugás y
+  // "UNLOCKED" recién cuando lo completás
+  let protocolState = (gameState === "complete") ? "UNLOCKED" : "IN PROGRESS";
+  text("KAREN OS v2.1 — TRAINING WHEELS PROTOCOL: " + protocolState, 20, 30);
   text("SCAN LOCK: " + nf(reticlePos.x, 4, 0) + " , " + nf(reticlePos.y, 4, 0), 20, 48);
 
-  // texto de prueba para el paso 4 — en el paso 5 esto se
-  // va a convertir en un cambio completo de estado del HUD
   if (villainCaptured) {
     fill(255, 90, 90);
     text("STATUS: TARGET AMBUSHED", 20, 66);
@@ -180,13 +259,18 @@ function drawTopHUD() {
     fill(120, 220, 255);
     text("STATUS: PRÓFUGO — EN FUGA", 20, 66);
   }
+
+  // progreso: cuántos villanos llevo atrapados
+  let capturedCount = capturedList.filter(c => c).length;
+  fill(120, 220, 255);
+  text("TARGETS NEUTRALIZED: " + capturedCount + "/" + Villians.length, 20, 84);
 }
 
 function drawHint() {
   noStroke();
   fill(255, 255, 255, 150);
   textSize(13);
-  text("[ presioná K para Personnel File ]", 20, height - 24);
+  text("[ ESPACIO: disparar  |  K: Personnel File  |  N: siguiente villano ]", 20, height - 24);
 }
 
 // Panel "Personnel File" — Karen identificando a una persona,
@@ -252,6 +336,24 @@ function drawPanel() {
 }
 
 function keyPressed() {
+  // ---- ESPACIO en las pantallas de inicio y final ----
+  // Ojo con el orden: acá el espacio SOLO cambia de pantalla y
+  // corta con return. Así el mismo ESPACIO que inicia el juego
+  // no dispara también una telaraña en el mismo instante.
+  if (key === ' ') {
+    if (gameState === "start") {
+      gameState = "playing";
+      return false; // false evita que el navegador scrollee la página con el espacio
+    }
+    if (gameState === "complete") {
+      resetGame();
+      return false;
+    }
+  }
+
+  // fuera del modo "playing" ninguna otra tecla hace nada
+  if (gameState !== "playing") return;
+
   if (key === 'k' || key === 'K') {
     panelOpen = !panelOpen;
 
@@ -270,10 +372,12 @@ function keyPressed() {
     webShot.tip = webShot.start.copy();// copy es una función de p5.js que clona un vector, para no modificar el original
   }
 
-  if (key === 'n' || key === 'N') {
+  // no dejo cambiar de villano mientras corre la cuenta regresiva final
+  if ((key === 'n' || key === 'N') && completeTimer === 0) {
     nextVillain();
   }
 
+  if (key === ' ') return false; // evita el scroll de la página
 }
 
 function nextVillain() {
@@ -282,7 +386,7 @@ function nextVillain() {
   villainCaptured = false;
   webShot.active = false;
   webShot.tip = null;
-   // createVector es una función de p5.js que crea un vector 2D (x, y)
+  // createVector es una función de p5.js que crea un vector 2D (x, y)
   villain.pos = createVector(random(100, width - 100), random(100, height - 100));
 
   personData = null;
@@ -292,6 +396,27 @@ function nextVillain() {
     fetchPersonData();
   }
 }
+
+// Deja todo como al principio y arranca una partida nueva
+// (se usa cuando apretás ESPACIO en la pantalla final)
+function resetGame() {
+  capturedList = [false, false, false, false];
+  completeTimer = 0;
+  villainIndex = 0;
+  villainCaptured = false;
+
+  webShot.active = false;
+  webShot.tip = null;
+
+  villain.pos = createVector(random(100, width - 100), random(100, height - 100));
+
+  personData = null;
+  personImg = null;
+  panelOpen = false;
+
+  gameState = "playing";
+}
+
 // ============================================
 // LLAMADA A LA API DE TMDB (búsqueda de persona)
 // ============================================
@@ -301,7 +426,8 @@ async function fetchPersonData() {
 
   try {
     // Paso 1: busco a la persona por nombre
-    let searchUrl = `https://api.themoviedb.org/3/search/person?api_key=${tmdb_api_key}&query=${encodeURIComponent(Villians[villainIndex])}&language=es-ES`;    let res = await fetch(searchUrl);
+    let searchUrl = `https://api.themoviedb.org/3/search/person?api_key=${tmdb_api_key}&query=${encodeURIComponent(Villians[villainIndex])}&language=es-ES`;
+    let res = await fetch(searchUrl);
     if (!res.ok) throw new Error("Error en la búsqueda: " + res.status);
 
     let searchData = await res.json();
@@ -338,7 +464,7 @@ function loadImagePromise(url) {
 }
 
 function drawCityGrid() {
-  stroke(20, 26, 32); 
+  stroke(20, 26, 32);
   strokeWeight(1);
 
   for (let x = 0; x < width; x += 45) {
@@ -421,6 +547,7 @@ function drawCaptureWeb() {
 
   pop();
 }
+
 // CAJA DE MIRA (TRACKER BOX)
 // Dibuja el marco angular alrededor del villano, y al lado
 // muestra sus coordenadas y la distancia real al reticle.
@@ -499,9 +626,21 @@ function updateWebShot() {
     // mientras el hilo viajaba por el aire)
     let hitDist = dist(webShot.target.x, webShot.target.y, villain.pos.x, villain.pos.y);
 
-    if (hitDist < hit_radius) {
+    // agrego "!villainCaptured" para que un villano que YA está
+    // atrapado no cuente dos veces si le volvés a disparar
+    if (hitDist < hit_radius && !villainCaptured) {
       // el villano seguía lo bastante cerca del punto apuntado: ¡acierto!
       villainCaptured = true;
+
+      // lo anoto en la lista de atrapados
+      capturedList[villainIndex] = true;
+
+      // every() devuelve true solo si TODOS los elementos cumplen
+      // la condición. Si los 4 están en true, se completó el protocolo:
+      // arranco la cuenta regresiva hacia la pantalla final.
+      if (capturedList.every(c => c)) {
+        completeTimer = complete_delay;
+      }
     }
     // si hitDist es mayor a hit_radius, el villano ya se había
     // movido demasiado lejos del punto apuntado: erraste el tiro,
