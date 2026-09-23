@@ -1,15 +1,14 @@
-// ============================================
 // CONFIGURACIÓN DE LA API (TMDB)
-// ============================================
 // Mi API key gratuita de themoviedb.org.
-const TMDB_API_KEY = "7361f0fa6f2a0f52a0109402a381e8f8";
-
+const tmdb_api_key = "7361f0fa6f2a0f52a0109402a381e8f8";
+ 
 // Ahora en vez de pedir datos de la PELÍCULA, le pido a Karen
 // que "identifique a una persona" — esto sí es una función real
 // del traje (Karen puede investigar personas que Peter se cruzó).
 // Uso el endpoint de búsqueda de personas de TMDB.
-const PERSON_QUERY = "Michael Keaton"; // el actor que hace de Vulture, el villano
+const Villians = ["Michael Keaton", "Jamie Foxx", "Alfred Molina", "Willem Dafoe"];
 
+let villainIndex = 0;
 // Variables donde voy guardando lo que me devuelve la API
 let personData = null;
 let personImg = null;
@@ -32,7 +31,9 @@ let webCombo = 1;
 
 let reticlePos;
 
+// ============================================
 // EL VILLANO (por ahora solo el movimiento)
+// ============================================
 // Lo armo como un objeto con su propia posición y
 // "semillas" de ruido para que se mueva distinto en X y en Y
 let villain = {
@@ -63,7 +64,7 @@ let villainCaptured = false;
 // radio de tolerancia: si el disparo llega a menos de esta
 // distancia del villano (en su posición actual, no la de cuando
 // disparaste), cuenta como acierto
-const hit_Radius = 45;
+const hit_radius = 45;
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
@@ -91,6 +92,11 @@ function draw() {
   updateVillain();
   drawVillain();
   drawTrackerBox();
+
+  // solo dibujo la red envolvente si el villano ya está atrapado
+  if (villainCaptured) {
+    drawCaptureWeb();
+  }
 
   updateWebShot();
   drawWebShot();
@@ -154,7 +160,7 @@ function drawReticle() {
 
 function drawTopHUD() {
   noStroke();
-  fill(120, 220, 255); // celeste, no rojo
+  fill(120, 220, 255);
   textSize(12);
   textFont('Courier New');
 
@@ -255,14 +261,32 @@ function keyPressed() {
     webShot.active = true;
     webShot.t = 0;
     webShot.start = createVector(reticlePos.x, reticlePos.y);
-    // apunto a donde está el villano EN ESTE INSTANTE;
-    // como el villano se sigue moviendo mientras el hilo viaja,
-    // esto simula que hay que "anticipar" el disparo
     webShot.target = createVector(villain.pos.x, villain.pos.y);
     webShot.tip = webShot.start.copy();
   }
+
+  if (key === 'n' || key === 'N') {
+    nextVillain();
+  }
+
 }
 
+function nextVillain() {
+  villainIndex = (villainIndex + 1) % Villians.length;
+
+  villainCaptured = false;
+  webShot.active = false;
+  webShot.tip = null;
+   // createVector es una función de p5.js que crea un vector 2D (x, y)
+  villain.pos = createVector(random(100, width - 100), random(100, height - 100));
+
+  personData = null;
+  personImg = null;
+
+  if (panelOpen) {
+    fetchPersonData();
+  }
+}
 // ============================================
 // LLAMADA A LA API DE TMDB (búsqueda de persona)
 // ============================================
@@ -272,8 +296,7 @@ async function fetchPersonData() {
 
   try {
     // Paso 1: busco a la persona por nombre
-    let searchUrl = `https://api.themoviedb.org/3/search/person?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(PERSON_QUERY)}&language=es-ES`;
-    let res = await fetch(searchUrl);
+    let searchUrl = `https://api.themoviedb.org/3/search/person?api_key=${tmdb_api_key}&query=${encodeURIComponent(Villians[villainIndex])}&language=es-ES`;    let res = await fetch(searchUrl);
     if (!res.ok) throw new Error("Error en la búsqueda: " + res.status);
 
     let searchData = await res.json();
@@ -285,7 +308,7 @@ async function fetchPersonData() {
     let person = searchData.results[0];
 
     // Paso 2: pido el detalle completo de esa persona (incluye biografía)
-    let detailUrl = `https://api.themoviedb.org/3/person/${person.id}?api_key=${TMDB_API_KEY}&language=es-ES`;
+    let detailUrl = `https://api.themoviedb.org/3/person/${person.id}?api_key=${tmdb_api_key}&language=es-ES`;
     let detailRes = await fetch(detailUrl);
     if (!detailRes.ok) throw new Error("Error al traer el detalle: " + detailRes.status);
 
@@ -359,16 +382,41 @@ function drawVillain() {
   translate(villain.pos.x, villain.pos.y);
 
   noStroke();
-  fill(255, 80, 80, 200); // rojo de alerta, para que se distinga del HUD celeste
+  // si está atrapado, lo tiño de un rojo más intenso para
+  // reforzar visualmente el cambio de estado
+  fill(villainCaptured ? color(255, 40, 40, 220) : color(255, 80, 80, 200));
   ellipse(0, 0, 34, 46); // torso
   ellipse(0, -26, 22, 22); // cabeza
 
   pop();
 }
 
-// ============================================
+// Red de telaraña radial envolviendo al villano — líneas que
+// salen del centro hacia afuera, más un par de anillos
+// concéntricos simulando los hilos "circulares" de una telaraña real.
+function drawCaptureWeb() {
+  push();
+  translate(villain.pos.x, villain.pos.y);
+
+  stroke(255, 255, 255, 200);
+  strokeWeight(1);
+  noFill();
+
+  // líneas radiales (los "rayos" de la telaraña)
+  let rayCount = 10;
+  for (let i = 0; i < rayCount; i++) {
+    let ang = (TWO_PI / rayCount) * i;
+    line(0, 0, cos(ang) * 60, sin(ang) * 60);
+  }
+
+  // anillos concéntricos (los "hilos circulares")
+  for (let r = 20; r <= 55; r += 17) {
+    circle(0, 0, r * 2);
+  }
+
+  pop();
+}
 // CAJA DE MIRA (TRACKER BOX)
-// ============================================
 // Dibuja el marco angular alrededor del villano, y al lado
 // muestra sus coordenadas y la distancia real al reticle.
 function drawTrackerBox() {
@@ -378,8 +426,15 @@ function drawTrackerBox() {
   let half = boxSize / 2;
   let cornerLen = 14; // largo de cada "esquina" angular
 
-  stroke(255, 90, 90);
-  strokeWeight(1.5);
+  // elijo el color según el estado. Antes siempre era rojo; ahora es celeste
+  // mientras está prófugo, y rojo brillante solo al atraparlo.
+  if (villainCaptured) {
+    stroke(255, 40, 40);
+    strokeWeight(2.5);
+  } else {
+    stroke(120, 220, 255);
+    strokeWeight(1.5);
+  }
   noFill();
 
   // en vez de un rectángulo completo, dibujo solo las 4 esquinas
@@ -395,11 +450,16 @@ function drawTrackerBox() {
   let d = dist(reticlePos.x, reticlePos.y, villain.pos.x, villain.pos.y);
 
   noStroke();
-  fill(255, 120, 120);
+  fill(villainCaptured ? color(255, 90, 90) : color(150, 220, 255));
   textSize(10);
   textFont('Courier New');
-  text("TARGET " + nf(x, 4, 0) + " , " + nf(y, 4, 0), x + half + 10, y - 6);
-  text("RANGE: " + nf(d, 4, 0) + "px", x + half + 10, y + 8);
+
+  if (villainCaptured) {
+    text("STATUS: AMBUSHED", x + half + 10, y - 6);
+  } else {
+    text("TARGET " + nf(x, 4, 0) + " , " + nf(y, 4, 0), x + half + 10, y - 6);
+    text("RANGE: " + nf(d, 4, 0) + "px", x + half + 10, y + 8);
+  }
 }
 
 // Función auxiliar: dibuja una sola "esquina" angular (2 líneas
@@ -413,7 +473,6 @@ function drawCorner(cx, cy, len, dirX, dirY) {
 // ============================================
 // LÓGICA DEL DISPARO DE TELARAÑA
 // ============================================
-
 function updateWebShot() {
   if (!webShot.active) return; // si no hay disparo activo, no hago nada
 
@@ -434,11 +493,11 @@ function updateWebShot() {
     // mientras el hilo viajaba por el aire)
     let hitDist = dist(webShot.target.x, webShot.target.y, villain.pos.x, villain.pos.y);
 
-    if (hitDist < hit_Radius) {
+    if (hitDist < hit_radius) {
       // el villano seguía lo bastante cerca del punto apuntado: ¡acierto!
       villainCaptured = true;
     }
-    // si hitDist es mayor a hit_Radius, el villano ya se había
+    // si hitDist es mayor a hit_radius, el villano ya se había
     // movido demasiado lejos del punto apuntado: erraste el tiro,
     // y no pasa nada más (villainCaptured sigue en false)
 
