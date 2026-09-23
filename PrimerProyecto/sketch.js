@@ -32,7 +32,7 @@ let webCombo = 1;
 let reticlePos;
 
 // ============================================
-// EL VILLANO (por ahora solo el movimiento)
+// EL VILLANO 
 // ============================================
 // Lo armo como un objeto con su propia posición y
 // "semillas" de ruido para que se mueva distinto en X y en Y
@@ -78,7 +78,8 @@ function setup() {
 function draw() {
   background(6, 8, 12);
   drawCityGrid();
-
+ 
+  //lerp es una función de p5.js que interpola suavemente entre dos valores. En este caso, hace que el reticlePos se acerque al mouseX y mouseY de manera gradual, creando un efecto de seguimiento suave.
   reticlePos.x = lerp(reticlePos.x, mouseX, 0.2);
   reticlePos.y = lerp(reticlePos.y, mouseY, 0.2);
 
@@ -145,7 +146,10 @@ function drawReticle() {
 
   for (let a = 0; a < 360; a += 45) {
     let ang = radians(a);
+    //line es la función de p5.js que dibuja una línea entre dos puntos (x1, y1, x2, y2)
     line(cos(ang) * 42, sin(ang) * 42, cos(ang) * 50, sin(ang) * 50);
+    // cos es la función de p5.js que devuelve el coseno de un ángulo (en radianes)
+    // sin es la función de p5.js que devuelve el seno de un ángulo (en radianes)
   }
   pop();
 
@@ -239,9 +243,10 @@ function drawPanel() {
     text("Ocupación: " + personData.known_for_department, px + 16, py + 40 + imgH + 40);
 
     let bio = personData.biography && personData.biography.length > 140
-      ? personData.biography.substring(0, 140) + "..."
+      ? personData.biography.substring(0, 140) + "..." //substring es una función de JS que corta un string a la cantidad de caracteres que le indiques
       : (personData.biography || "Sin datos biográficos disponibles.");
     fill(200);
+    //con text puedo pasarle un ancho máximo y un alto máximo, y el texto se ajusta automáticamente a ese rectángulo
     text(bio, px + 16, py + 40 + imgH + 60, panelW - 32, 100);
   }
 }
@@ -262,7 +267,7 @@ function keyPressed() {
     webShot.t = 0;
     webShot.start = createVector(reticlePos.x, reticlePos.y);
     webShot.target = createVector(villain.pos.x, villain.pos.y);
-    webShot.tip = webShot.start.copy();
+    webShot.tip = webShot.start.copy();// copy es una función de p5.js que clona un vector, para no modificar el original
   }
 
   if (key === 'n' || key === 'N') {
@@ -333,7 +338,7 @@ function loadImagePromise(url) {
 }
 
 function drawCityGrid() {
-  stroke(20, 26, 32); // grid también ajustado a tono azulado, no gris neutro
+  stroke(20, 26, 32); 
   strokeWeight(1);
 
   for (let x = 0; x < width; x += 45) {
@@ -361,7 +366,7 @@ function updateVillain() {
   // si ya está atrapado, no se mueve más — se "congela" en el lugar
   if (villainCaptured) return;
 
-  // noise() siempre devuelve un valor entre 0 y 1.
+  // noise() siempre devuelve un valor entre 0 y 1, es una función de "ruido" que genera números pseudoaleatorios pero suaves.
   // Yo lo "reencuadro" con map() al rango de todo el canvas.
   let nx = noise(villain.noiseSeedX);
   let ny = noise(villain.noiseSeedY);
