@@ -6,7 +6,7 @@ const tmdb_api_key = "7361f0fa6f2a0f52a0109402a381e8f8";
 // que "identifique a una persona" — esto sí es una función real
 // del traje (Karen puede investigar personas que Peter se cruzó).
 // Uso el endpoint de búsqueda de personas de TMDB.
-const Villians = ["Michael Keaton", "Jamie Foxx", "Alfred Molina", "Willem Dafoe"];
+const Villians = ["Michael Keaton", "Jamie Foxx", "Alfred Molina", "Willem Dafoe","Bokeem Woodbine"];
 
 let villainIndex = 0;
 // Variables donde voy guardando lo que me devuelve la API
@@ -28,7 +28,8 @@ let gameState = "start";
 
 // Un casillero por villano: true si ya lo atrapaste.
 // El protocolo se completa cuando TODOS están en true.
-let capturedList = [false, false, false, false];
+// flill es una función de JS que crea un array con la cantidad de elementos que le indiques, y los inicializa con el valor que le pases (en este caso, false)
+let capturedList = new Array(Villians.length).fill(false);
 
 // Cuando atrapás al último villano no salto directo a la pantalla
 // final: espero unos frames para que alcances a ver la red sobre él.
@@ -400,8 +401,7 @@ function nextVillain() {
 // Deja todo como al principio y arranca una partida nueva
 // (se usa cuando apretás ESPACIO en la pantalla final)
 function resetGame() {
-  capturedList = [false, false, false, false];
-  completeTimer = 0;
+  capturedList = new Array(Villians.length).fill(false);  completeTimer = 0;
   villainIndex = 0;
   villainCaptured = false;
 
