@@ -462,6 +462,7 @@ function drawTrackerBox() {
   if (villainCaptured) {
     text("STATUS: AMBUSHED", x + half + 10, y - 6);
   } else {
+    // nf es una función de p5.js que formatea números a un string con cantidad fija de dígitos y decimales. En este caso, quiero 4 dígitos enteros y 0 decimales.
     text("TARGET " + nf(x, 4, 0) + " , " + nf(y, 4, 0), x + half + 10, y - 6);
     text("RANGE: " + nf(d, 4, 0) + "px", x + half + 10, y + 8);
   }
